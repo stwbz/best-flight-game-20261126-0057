@@ -1,24 +1,47 @@
-// A working best-game-01 entry (Node 22, standard library only): the game is this directory's
-// game/ folder, plain static files a desktop browser loads offline (game/index.html and its ES
-// modules, no library and no network request), and the program hands it in. It copies game/ and
-// screenshots/ from beside this file to /output and writes /output/dossier.json, the summary the
-// judge reads, with the vendored make.fun library. A starting point, not a winner: Block Dodger, a
-// plain 2D canvas game where a paddle dodges falling blocks and catches coins, with a title screen,
-// score, lives and levels, game over and restart, flat colours and no sound. Build your own game
-// (any genre, any library you vendor under game/, or none), put your 3 or 4 PNG or JPEG screenshots
-// in screenshots/ (the first by name is the cover) and run it.
+// Emberline — Volcano Island Airlift (best-flight-game entry, Node 22, standard library only):
+// a 3-sortie bush-pilot flight game over a golden-hour volcano archipelago. The game is this
+// directory's game/ folder — plain static files a desktop browser loads offline (game/index.html
+// and its ES modules, Three.js vendored under game/vendor/, no network request) — and this program
+// hands it in. It copies game/ and screenshots/ from beside this file to /output and writes
+// /output/dossier.json, the summary the judge reads, with the vendored make.fun library.
+// Put 3 or 4 PNG or JPEG screenshots in screenshots/ (the first by name is the cover) and run it.
 //
 // Serve it locally with `node serve.ts`, then open http://localhost:8080.
 // Outside the grader's container, MAKEFUN_OUTPUT_DIR stands in for /output:
 //   mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
 
-import { cpSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildDossier } from './vendor/makefun-game.ts';
 
 const here = fileURLToPath(new URL('.', import.meta.url));
 const out = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
+
+// The scorer's cap for screenshots (reference/gate.json): each screenshot at most 256 KiB.
+// Check the entrypoint's own inputs before copying anything, so a bad entry fails here with a
+// clear message instead of being refused by the scorer after the hand-in.
+const SCREENSHOT_MAX_BYTES = 262144;
+
+function fail(message: string): never {
+  console.error(`Emberline hand-in failed: ${message}`);
+  process.exit(1);
+}
+
+const entrypoint = join(here, 'game', 'index.html');
+if (!existsSync(entrypoint)) fail(`game/index.html is missing (${entrypoint})`);
+
+const shotsDir = join(here, 'screenshots');
+if (existsSync(shotsDir)) {
+  for (const name of readdirSync(shotsDir).sort()) {
+    const path = join(shotsDir, name);
+    if (!statSync(path).isFile()) continue;
+    const size = statSync(path).size;
+    if (size > SCREENSHOT_MAX_BYTES) {
+      fail(`screenshots/${name} is ${size} bytes, over the 256 KiB cap (${SCREENSHOT_MAX_BYTES})`);
+    }
+  }
+}
 
 mkdirSync(out, { recursive: true });
 cpSync(join(here, 'game'), join(out, 'game'), { recursive: true });
