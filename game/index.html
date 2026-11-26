@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Emberline — Volcano Island Airlift</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #1a1210; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  #status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .hud { position: fixed; inset: 0; pointer-events: none; color: #e8f2f5; z-index: 5; }
+  .hud * { box-sizing: border-box; }
+  .hud.title-mode .panel, .hud.title-mode .compass, .hud.title-mode .tape,
+  .hud.title-mode .left-bottom, .hud.title-mode .radar, .hud.title-mode .radar-label,
+  .hud.title-mode .atc, .hud.title-mode .fpm { display: none; }
+  .panel { position: absolute; background: rgba(8, 18, 26, 0.72); border: 1px solid rgba(255,255,255,0.22); border-radius: 6px; padding: 8px 12px; }
+  .mission { top: 14px; left: 14px; max-width: 430px; }
+  .mission-title { font-weight: 700; font-size: 14px; letter-spacing: 0.06em; color: #ffb347; }
+  .mission-line { font-size: 13px; margin-top: 3px; }
+  .mission-score { font-size: 12px; margin-top: 3px; color: #9fb8c4; }
+  .compass { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); border: 1px solid rgba(255,255,255,0.22); border-radius: 6px; }
+  .tape { position: absolute; top: 50%; transform: translateY(-50%); border-radius: 6px; }
+  .tape.speed { left: 14px; }
+  .tape.alt { right: 14px; }
+  .left-bottom { position: absolute; left: 14px; bottom: 14px; display: flex; gap: 12px; align-items: flex-end; }
+  .attitude { border: 1px solid rgba(255,255,255,0.22); border-radius: 50%; background: rgba(8, 18, 26, 0.72); }
+  .bars { display: flex; flex-direction: column; gap: 6px; padding-bottom: 4px; }
+  .bar-row { display: flex; align-items: center; gap: 6px; }
+  .bar-label { font-size: 10px; letter-spacing: 0.08em; width: 34px; color: #9fb8c4; }
+  .bar-track { width: 150px; height: 12px; background: rgba(8, 18, 26, 0.72); border: 1px solid rgba(255,255,255,0.25); border-radius: 3px; overflow: hidden; }
+  .bar-fill { height: 100%; width: 100%; background: #2ecc71; transition: width 0.15s linear; }
+  .bar-val { font-size: 11px; width: 34px; }
+  .radar { position: absolute; right: 14px; bottom: 14px; border: 1px solid rgba(255,255,255,0.22); border-radius: 6px; background: rgba(8, 18, 26, 0.72); }
+  .radar-label { position: absolute; right: 20px; bottom: 192px; font-size: 10px; letter-spacing: 0.12em; color: #9fb8c4; }
+  .atc { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); background: rgba(8, 18, 26, 0.78); border: 1px solid rgba(255,179,71,0.5); border-radius: 6px; padding: 7px 16px; font-size: 13px; letter-spacing: 0.03em; max-width: 62%; text-align: center; }
+  .fpm { position: absolute; left: 50%; top: 50%; width: 18px; height: 18px; margin: -9px 0 0 -9px; border: 2px solid rgba(255,255,255,0.85); border-radius: 50%; }
+  .fpm::after { content: ""; position: absolute; left: 50%; top: -14px; width: 2px; height: 8px; margin-left: -1px; background: rgba(255,255,255,0.85); }
+  .screen { position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; text-align: center; background: rgba(10, 8, 14, 0.55); pointer-events: auto; padding: 24px; }
+  .screen h1 { font-size: 54px; margin: 0; letter-spacing: 0.14em; color: #ffb347; text-shadow: 0 3px 18px rgba(0,0,0,0.7); }
+  .screen h2 { font-size: 22px; margin: 6px 0 0; font-weight: 400; letter-spacing: 0.22em; color: #ffe6c4; }
+  .screen p { font-size: 16px; max-width: 560px; line-height: 1.5; color: #f2e8dc; text-shadow: 0 2px 8px rgba(0,0,0,0.8); }
+  .screen .story { margin-top: 18px; }
+  .screen .controls { display: flex; flex-wrap: wrap; gap: 8px 18px; justify-content: center; margin: 20px 0; max-width: 620px; font-size: 13px; color: #d8e6ec; }
+  .screen .controls b { color: #ffb347; }
+  .screen .score-line { font-size: 24px; font-weight: 700; color: #ffb347; letter-spacing: 0.08em; }
+  .big-btn { pointer-events: auto; cursor: pointer; margin-top: 8px; padding: 14px 30px; font-size: 17px; font-weight: 700; letter-spacing: 0.06em; color: #1a1210; background: #ffb347; border: none; border-radius: 8px; box-shadow: 0 4px 24px rgba(255,179,71,0.45); }
+  .big-btn:hover { background: #ffc46b; }
+  .best { font-size: 13px; color: #9fb8c4; }
+</style>
+<script type="importmap">
+{ "imports": { "three": "./vendor/three.module.min.js" } }
+</script>
+</head>
+<body>
+<canvas id="game" aria-label="Emberline: fly the supply run over the volcanic archipelago, thread the rings and land on runway 09"></canvas>
+<div id="hud-root"></div>
+<p id="status" role="status" aria-live="polite"></p>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
